@@ -607,7 +607,7 @@ export default {
   restStates: ['closed', 'holding', 'stuck', 'stopped'], // the door is at rest (TEST DOOR can start) in these states
   Door: DockDoor,
   hints: {
-    closed: 'Tap a part to select it · tap the door to run it up',
+    closed: 'Tap a part to select it · tap the door to run it up · drag to look around',
     holding: 'Tap the doorway, or press CLOSE on the wall control, to run it down',
     stopped: 'Door stopped. Tap it or use the wall control.',
     operating: 'Door rolling up…',

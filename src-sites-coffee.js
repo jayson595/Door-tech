@@ -494,7 +494,7 @@ export default {
   restStates: ['closed'],
   Door: DriveWindow,
   hints: {
-    closed: 'Tap a part to select it · tap the window to open it',
+    closed: 'Tap a part to select it · tap the window to open it · drag to look around',
     operating: 'Window sliding open…',
     holding: '',
     closing: 'Window sliding shut…',

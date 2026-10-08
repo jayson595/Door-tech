@@ -445,7 +445,7 @@ export default {
   restStates: ['held', 'closed'], // the door is at rest (TEST DOOR can start) in these states
   Door: FireDoors,
   hints: {
-    held: 'Tap a part to select it · tap the doors to pull them off the magnets',
+    held: 'Tap a part to select it · tap the doors to pull them off the magnets · drag to look around',
     closed: 'Tap the doors to push them back onto the magnets',
     closing: 'Closers bringing the doors shut…',
     opening: '',

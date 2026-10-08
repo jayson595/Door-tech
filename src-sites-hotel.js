@@ -735,13 +735,14 @@ export default {
   framing: {
     arrival: { cx: 0, xHalf: 3.0, yMin: -0.2, yMax: 4.4 },
     work: { cx: 0, xHalf: 1.5, yMin: -0.1, yMax: 2.9 },
-    inside: { cx: 0.6, xHalf: 2.2, yMin: -0.1, yMax: 2.9 },
+    // maxDist keeps you in front of the reception desk (its front edge is 4 m in); drag to look around
+    inside: { cx: 0.6, xHalf: 2.2, yMin: -0.1, yMax: 2.9, maxDist: 3.9 },
   },
   build,
   restStates: ['idle'],
   Door: RevolvingDoor,
   hints: {
-    idle: 'Tap a part to select it · tap the wings to walk through the door',
+    idle: 'Tap a part to select it · tap the wings to walk through · drag to look around',
     turning: 'Door turning…',
     paused: 'Door stopped…',
     breakout: 'Wings folded flat for an emergency exit',

@@ -631,7 +631,7 @@ export default {
   restStates: ['closed', 'holding', 'stuck', 'stopped'],
   Door: SectionalDoor,
   hints: {
-    closed: 'Tap a part to select it · tap the door to run it up',
+    closed: 'Tap a part to select it · tap the door to run it up · drag to look around',
     holding: 'Tap the door to run it down',
     stopped: 'Door stopped. Tap it to run it again.',
     operating: 'Door going up…',

@@ -3,7 +3,7 @@
 // saved copy instantly and quietly checks for a newer version in the background.
 // Bump VERSION whenever the game is republished so phones pick up the new files.
 
-const VERSION = 'dts-v1.1-gh1';
+const VERSION = 'dts-v1.1-gh2';
 
 const FILES = [
   './',

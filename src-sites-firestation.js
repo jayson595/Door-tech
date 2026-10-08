@@ -597,7 +597,7 @@ export default {
   restStates: ['closed', 'holding', 'stuck'],
   Door: FireBayDoor,
   hints: {
-    closed: 'Tap a part to select it · tap the door to run it up',
+    closed: 'Tap a part to select it · tap the door to run it up · drag to look around',
     holding: 'Tap the door to run it down',
     operating: 'Door going up…',
     closing: 'Door coming down…',

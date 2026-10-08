@@ -414,7 +414,7 @@ export default {
   restStates: ['closed'], // the door is at rest (TEST DOOR can start) in these states
   Door: SlidingDoor,
   hints: {
-    closed: 'Tap a part to select it · tap the glass to walk up to the door',
+    closed: 'Tap a part to select it · tap the glass to walk up to the door · drag to look around',
     operating: 'Doors sliding open…',
     closing: 'Doors sliding shut…',
   },

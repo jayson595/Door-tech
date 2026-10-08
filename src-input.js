@@ -6,7 +6,9 @@
 //
 //   a component's tap box  -> SELECT that component
 //   the door               -> TAP = pull it open, DRAG = pull/push it by hand
-//   anything else          -> deselect and step back
+//   anything else          -> deselect and step back (or face the door again, if turned)
+//
+// Dragging anywhere that isn't the door turns your head to look around.
 //
 // Dragging the door: outside, drag DOWN or LEFT (pulling toward you).
 //                    inside, drag UP or RIGHT (pushing it out).
@@ -70,7 +72,8 @@ export function setupInput(canvas, camera, scene, door, rig, selection) {
       }
     }
     if (grab || rig.fading || door.locked) return;
-    grab = { id: e.pointerId, x: e.clientX, y: e.clientY, startAngle: door.angle, moved: false, target: pick(e) };
+    grab = { id: e.pointerId, x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY,
+      startAngle: door.angle, moved: false, target: pick(e) };
     canvas.setPointerCapture(e.pointerId);
   });
 
@@ -106,7 +109,11 @@ export function setupInput(canvas, camera, scene, door, rig, selection) {
       const pull = rig.side === 'out' ? dy - dx : dx - dy;
       // a heavy door (cranked closer/operator) moves less for the same finger drag
       door.dragTo(grab.startAngle + pull * DRAG_DEGREES_PER_PIXEL * door.pullEffort);
+    } else if (grab.moved) {
+      // dragging anywhere else turns your head to look around
+      rig.turn(e.clientX - grab.lastX, e.clientY - grab.lastY);
     }
+    grab.lastX = e.clientX; grab.lastY = e.clientY;
   });
 
   function end(e) {
@@ -123,6 +130,7 @@ export function setupInput(canvas, camera, scene, door, rig, selection) {
     if (selection.truck && selection.truck.isOpen) return; // at the truck: only cabinets respond
     if (target.kind === 'component') selection.select(target.id);
     else if (target.kind === 'door') door.tapPull(rig.side === 'in' ? 'egress' : 'pull');
+    else if (!selection.selected && rig.turned) rig.straighten(); // tap empty space: face the door again
     else selection.clear();
   }
   canvas.addEventListener('pointerup', end);

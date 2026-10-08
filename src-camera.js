@@ -28,6 +28,10 @@ export class CameraRig {
     this.shakeAmount = 0;
     this.zoom = 1;          // pinch / wheel zoom: 1 = normal, smaller = closer (ZOOM_MIN)
     this.zoomGoal = 1;
+    // look around: drag on empty space to turn your head. Radians, relative to the view's
+    // straight-ahead direction. Moving to another view faces straight ahead again.
+    this.yaw = 0; this.pitch = 0;
+    this.yawGoal = 0; this.pitchGoal = 0;
     this.resize();
     this.pos.copy(this.views.arrival.pos);
     this.look.copy(this.views.arrival.look);
@@ -49,8 +53,11 @@ export class CameraRig {
       (box.yMax - box.yMin) / (t * (ndcTop - ndcBot)),
       box.xHalf / (t * cam.aspect),
     );
-    const eyeY = (box.yMax + box.yMin) / 2 - dist * t * ((ndcTop + ndcBot) / 2);
-    return new THREE.Vector3(box.cx, eyeY, dist);
+    // a building can cap how far back the camera stands (so it never ends up behind
+    // furniture, like the hotel's reception desk); the player turns to see the rest
+    const d = box.maxDist ? Math.min(dist, box.maxDist) : dist;
+    const eyeY = (box.yMax + box.yMin) / 2 - d * t * ((ndcTop + ndcBot) / 2);
+    return new THREE.Vector3(box.cx, eyeY, d);
   }
 
   resize() {
@@ -72,6 +79,7 @@ export class CameraRig {
 
   go(view, focus = null) {
     this.zoomGoal = 1; // moving to a new view resets the zoom
+    this.yawGoal = 0; this.pitchGoal = 0; // ...and faces straight ahead again
     // the very first walk up from the arrival shot is slow; everything after is snappy
     this.speed = view === 'arrival' || this.current === 'arrival' ? 1.6 : 3.5;
     let target;
@@ -98,6 +106,19 @@ export class CameraRig {
       }, 230);
     }
   }
+
+  // Turn your head by a finger/mouse drag of (dx, dy) pixels.
+  turn(dx, dy) {
+    const k = 0.005; // radians per pixel
+    // "grab the scene" like a photo sphere: drag right to look left, drag down to look up
+    this.yawGoal = THREE.MathUtils.clamp(this.yawGoal + dx * k, -1.3, 1.3);     // ~75° each way
+    this.pitchGoal = THREE.MathUtils.clamp(this.pitchGoal + dy * k, -0.6, 0.6); // ~35° up/down
+  }
+
+  get turned() { return Math.abs(this.yawGoal) > 0.02 || Math.abs(this.pitchGoal) > 0.02; }
+
+  // Face straight ahead again without leaving the spot.
+  straighten() { this.yawGoal = 0; this.pitchGoal = 0; }
 
   // Jolt the view (door slamming). strength 0..1
   shake(strength) {
@@ -126,6 +147,23 @@ export class CameraRig {
       this.camera.position.y += (Math.random() - 0.5) * s;
       this.shakeAmount = Math.max(0, this.shakeAmount - dt * 3);
     }
-    this.camera.lookAt(this.look);
+    // turning your head: swing the look direction around where you stand
+    const kt = Math.min(1, dt * 12);
+    this.yaw += (this.yawGoal - this.yaw) * kt;
+    this.pitch += (this.pitchGoal - this.pitch) * kt;
+    if (Math.abs(this.yaw) < 1e-4 && Math.abs(this.pitch) < 1e-4) {
+      this.camera.lookAt(this.look);
+    } else {
+      const dir = _dir.copy(this.look).sub(this.camera.position);
+      dir.applyAxisAngle(_up, this.yaw);
+      _side.crossVectors(dir, _up).normalize();
+      dir.applyAxisAngle(_side, this.pitch);
+      this.camera.lookAt(_tgt.copy(this.camera.position).add(dir));
+    }
   }
 }
+
+const _dir = new THREE.Vector3();
+const _side = new THREE.Vector3();
+const _tgt = new THREE.Vector3();
+const _up = new THREE.Vector3(0, 1, 0);

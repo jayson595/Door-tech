@@ -256,7 +256,7 @@ export default {
   restStates: ['closed', 'ajar'],
   Door: ManDoor,
   hints: {
-    closed: 'Tap a part to select it · tap the steel door to pull it open',
+    closed: 'Tap a part to select it · tap the steel door to pull it open · drag to look around',
     opening: 'Door swinging open…',
     holding: '',
     closing: 'Closer bringing the door shut…',

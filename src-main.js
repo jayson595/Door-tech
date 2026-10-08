@@ -117,7 +117,7 @@ $('wo-toggle').addEventListener('click', () => $('workorder').classList.toggle('
 // ---------- hint line ----------
 const hintEl = $('hint');
 const HINTS = {
-  closed: 'Tap a part to select it · tap or drag the door to open it',
+  closed: 'Tap a part to select it · tap or drag the door to open it · drag elsewhere to look around',
   dragging: 'Let go and the closer will shut it',
   pulling: '',
   hungUp: '',
