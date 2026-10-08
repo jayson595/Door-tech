@@ -1,0 +1,292 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style>
+<title>Door Tech Simulator</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#14171b">
+<meta name="application-name" content="Door Tech">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Door Tech">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<link rel="apple-touch-icon" href="icons-apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icons-favicon.png">
+</head><body>
+  <link rel="stylesheet" href="style.css">
+  <!-- If anything goes wrong while loading (phones have no developer console), show it on screen
+       instead of a blank page. -->
+  <script>
+    (function () {
+      function show(msg) {
+        var box = document.getElementById('load-error');
+        if (!box) {
+          box = document.createElement('div');
+          box.id = 'load-error';
+          box.style.cssText = 'position:fixed;left:10px;right:10px;top:10px;z-index:999;padding:12px;' +
+            'background:#2a0d0d;color:#ffb4a6;border:1px solid #ff6b3d;border-radius:8px;' +
+            'font:13px/1.4 sans-serif;white-space:pre-wrap;word-break:break-word';
+          (document.body || document.documentElement).appendChild(box);
+        }
+        var NL = String.fromCharCode(10);
+        box.textContent += (box.textContent ? NL : 'Door Tech Simulator hit a problem:' + NL) + msg;
+      }
+      window.addEventListener('error', function (e) {
+        show((e.message || 'Error') + (e.filename ? ' (' + e.filename.split('/').pop() + ':' + e.lineno + ')' : ''));
+      });
+      window.addEventListener('unhandledrejection', function (e) { show(String(e.reason)); });
+      if (!(HTMLScriptElement.supports && HTMLScriptElement.supports('importmap'))) {
+        window.addEventListener('DOMContentLoaded', function () {
+          show('This browser is too old to run the game (no import map support). ' +
+            'Update your phone browser, or try Chrome or Safari.');
+        });
+      }
+      // If the game hasn't started after 8 seconds, say so.
+      setTimeout(function () { if (!window.DTS) show('Game did not start (still loading or blocked).'); }, 8000);
+    })();
+  </script>
+  <!-- Tells the browser that "three" means our local copy of Three.js in /vendor -->
+  <script type="importmap">{ "imports": { "three": "./vendor-three.module.js" } }</script>
+<div id="stage">
+    <!-- The 3D view: Three.js draws the storefront into this canvas -->
+    <canvas id="view"></canvas>
+
+    <!-- TOP: job name + timer + repair quality + safety -->
+    <header id="topbar">
+      <div class="job">
+        <span class="job-name" id="job-name">Riverside Market</span>
+        <span class="job-id" id="job-place">SVC #1001 · Front Entrance</span>
+      </div>
+      <div class="stats">
+        <div class="stat"><span class="label">TIME</span><span id="stat-time" class="value">00:00</span></div>
+        <div class="stat"><span class="label">QUALITY</span><span id="stat-quality" class="value">--</span></div>
+        <div class="stat"><span class="label">SAFETY</span><span id="stat-safety" class="value good">100%</span></div>
+      </div>
+    </header>
+
+    <!-- UPPER LEFT: collapsible work order -->
+    <section id="workorder" class="collapsed">
+      <button id="wo-toggle" type="button">
+        <span>WORK ORDER <span id="wo-count" class="hidden"></span></span><span class="chev">▾</span>
+      </button>
+      <div id="wo-body">
+        <div class="wo-row"><span class="wo-label">Customer</span><span id="wo-customer">Riverside Market</span></div>
+        <div class="wo-row"><span class="wo-label">Door</span><span id="wo-door">Front entrance · aluminum storefront, outswing</span></div>
+        <div class="wo-row"><span class="wo-label">Complaint</span>
+          <q id="wo-complaint"></q>
+        </div>
+        <div class="wo-label">Objectives</div>
+        <ul id="objectives">
+          <li data-obj="safety">Set up cones &amp; caution tape</li>
+          <li data-obj="inspect">Inspect the door hardware (3+ parts)</li>
+          <li data-obj="diagnose">Diagnose the fault</li>
+          <li data-obj="repair">Repair or adjust</li>
+          <li data-obj="test">Test the door (3 cycles)</li>
+          <li data-obj="complete">Complete the work order</li>
+        </ul>
+        <div class="wo-label">Parts on hand</div>
+        <div id="wo-parts" class="wo-row"></div>
+        <div class="wo-label">Diagnosis</div>
+        <div id="wo-diagnosis" class="wo-row"></div>
+        <div class="wo-label">Findings</div>
+        <ul id="findings"></ul>
+      </div>
+    </section>
+
+    <!-- BOTTOM: hint, selected-part card, side toggle + actions, tool inventory -->
+    <footer id="bottom">
+      <div id="hint" class="hidden"></div>
+      <div id="selcard" class="hidden">
+        <div class="sel-head">
+          <span id="sel-name"></span>
+          <span id="sel-badge" class="hidden">✓ INSPECTED</span>
+          <button id="sel-close" type="button" aria-label="Step back">✕</button>
+        </div>
+        <div id="sel-blurb"></div>
+        <div id="sel-progress" class="hidden"><span>Inspecting…</span><div class="fill"></div></div>
+        <ul id="sel-notes"></ul>
+      </div>
+      <!-- step-by-step repair (Phase 8) -->
+      <div id="repair" class="hidden">
+        <div class="rp-head">
+          <span id="rp-title"></span>
+          <button id="rp-close" type="button" aria-label="Stop for now">✕</button>
+        </div>
+        <ol id="rp-steps"></ol>
+        <div id="rp-label"></div>
+        <div id="rp-need"></div>
+        <div id="rp-feedback"></div>
+        <div id="rp-control"></div>
+      </div>
+      <!-- SERVICE TRUCK: side cabinets with parts -->
+      <div id="truckpanel" class="hidden">
+        <div class="rp-head">
+          <span id="tk-title">SERVICE TRUCK</span>
+          <span id="tk-load"></span>
+        </div>
+        <div id="tk-cabinets"></div>
+        <ul id="tk-items"></ul>
+        <button id="tk-back" type="button">BACK TO THE DOOR</button>
+      </div>
+      <!-- TEST DOOR (Phase 9) -->
+      <div id="testpanel" class="hidden">
+        <div class="rp-head">
+          <span id="tp-title">TESTING THE DOOR</span>
+          <button id="tp-fast" type="button">⏩ FAST</button>
+        </div>
+        <div id="tp-cycle"></div>
+        <ul id="tp-checks"></ul>
+        <div id="tp-verdict"></div>
+        <div id="tp-buttons" class="rp-row"></div>
+      </div>
+      <div id="controls-row">
+        <button id="side-toggle" type="button">GO INSIDE</button>
+        <button id="truck-open" type="button">TRUCK</button>
+        <button id="cones-open" type="button">CONES</button>
+        <button id="diag-open" type="button">DIAGNOSE</button>
+        <button id="test-open" type="button" class="hidden">TEST DOOR</button>
+        <div id="actions"></div>
+      </div>
+      <div id="tools">
+        <button class="tool" data-tool="screwdriver" disabled>
+          <img src="art-tools-screwdriver.png" alt="">
+          <span>Screwdriver</span>
+        </button>
+        <button class="tool" data-tool="allenKeys" disabled>
+          <img src="art-tools-allenKeys.png" alt="">
+          <span>Allen Keys</span>
+        </button>
+        <button class="tool" data-tool="wrench" disabled>
+          <img src="art-tools-wrench.png" alt="">
+          <span>Wrench</span>
+        </button>
+        <button class="tool" data-tool="multimeter" disabled>
+          <img src="art-tools-multimeter.png" alt="">
+          <span>Multimeter</span>
+        </button>
+        <button class="tool" data-tool="level" disabled>
+          <img src="art-tools-level.png" alt="">
+          <span>Level</span>
+        </button>
+        <button class="tool" data-tool="lubricant" disabled>
+          <img src="art-tools-lubricant.png" alt="">
+          <span>Lubricant</span>
+        </button>
+        <button class="tool pouch" id="parts-pouch" type="button">
+          <img src="art-toolbag.png" alt="">
+          <span>Parts</span>
+          <b id="pouch-count" class="hidden"></b>
+        </button>
+      </div>
+    </footer>
+
+    <!-- DIAGNOSE PROBLEM sheet -->
+    <div id="diag" class="hidden">
+      <div class="diag-card">
+        <div class="diag-title">DIAGNOSE PROBLEM</div>
+        <div class="diag-q">What is causing the customer's complaint?</div>
+        <q class="diag-complaint" id="diag-complaint"></q>
+        <div id="diag-options"></div>
+        <div id="diag-feedback"></div>
+        <button id="diag-cancel" type="button">KEEP TROUBLESHOOTING</button>
+      </div>
+    </div>
+
+    <!-- JOB BOARD: where every service call starts (Phase 10) -->
+    <div id="jobboard">
+      <div class="jb-card">
+        <div class="jb-brand">DOOR TECH SIMULATOR</div>
+        <div id="jb-stats"></div>
+        <div class="jb-title">JOB BOARD · PICK A CALL</div>
+        <div id="jb-calls"></div>
+        <div id="jb-last" class="hidden"></div>
+        <a id="jb-sandbox" href="sandbox.html" style="display:block;margin-top:12px;text-align:center;font-size:13px;color:#9aa3ac">Building sandbox: try any building without a job</a>
+        <button id="jb-install" type="button" hidden style="display:block;width:100%;margin-top:10px;padding:10px;border-radius:8px;border:1px solid #f5b301;background:transparent;color:#f5b301;font-family:inherit;font-weight:600;font-size:14px;letter-spacing:.04em">📲 INSTALL AS AN APP</button>
+        <div id="jb-install-help" hidden style="margin-top:8px;padding:10px;border-radius:8px;background:rgba(245,179,1,.1);color:#e9ecef;font-size:13px;line-height:1.45"></div>
+      </div>
+    </div>
+
+    <!-- RESULTS: job complete score card (Phase 10) -->
+    <div id="results" class="hidden">
+      <div class="rs-card">
+        <div class="rs-title">JOB COMPLETE</div>
+        <div class="rs-site">Riverside Market · Front Entrance</div>
+        <ul id="rs-rows"></ul>
+        <div class="rs-label">Technician Rating</div>
+        <div id="rs-stars"></div>
+        <ul id="rs-invoice"></ul>
+        <div class="rs-money">
+          <div><small>YOU EARN</small><b id="rs-pay">$0</b></div>
+          <div><small>EXPERIENCE</small><b id="rs-xp">+0 XP</b></div>
+        </div>
+        <button id="rs-back" type="button">RETURN TO JOB LIST</button>
+      </div>
+    </div>
+
+    <div id="toast"></div>
+    <div id="fade"></div>
+    <div id="phase-tag">PROTOTYPE v1.1</div>
+  </div>
+
+  <!-- Shown on phones held sideways: this game is portrait only -->
+  <div id="rotate">
+    <svg viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18.5h2"/></svg>
+    <p>Turn your phone upright to play</p>
+  </div>
+
+  <script type="module" src="src-main.js"></script>
+
+  <!-- APP INSTALL: offline support + an "Install as an app" button on the job board -->
+  <script>
+    (function () {
+      // Save the game on the phone so it opens offline (quietly skipped if not allowed here).
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function () {
+          navigator.serviceWorker.register('sw.js', { scope: './' }).catch(function () {});
+        });
+      }
+
+      var standalone = (window.matchMedia && matchMedia('(display-mode: standalone)').matches) ||
+                       navigator.standalone === true;
+      if (standalone) return; // already running as the installed app
+
+      var btn = document.getElementById('jb-install');
+      var help = document.getElementById('jb-install-help');
+      if (!btn || !help) return;
+      var ua = navigator.userAgent || '';
+      var isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+      var isAndroid = /Android/.test(ua);
+      var deferred = null;
+
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        deferred = e;
+        btn.hidden = false;
+      });
+      window.addEventListener('appinstalled', function () {
+        btn.hidden = true; help.hidden = true; deferred = null;
+      });
+
+      // iPhones never offer a one-tap install, so show the steps instead.
+      if (isIOS || isAndroid) btn.hidden = false;
+
+      btn.addEventListener('click', function () {
+        if (deferred) {
+          deferred.prompt();
+          deferred.userChoice.finally(function () { deferred = null; });
+          return;
+        }
+        if (isIOS) {
+          var safari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|GSA/.test(ua);
+          help.innerHTML = safari
+            ? 'Tap the <b>Share</b> button <span style="font-size:15px">⬆️</span> at the bottom of Safari, ' +
+              'scroll down, tap <b>Add to Home Screen</b>, then <b>Add</b>.'
+            : 'Open this page in <b>Safari</b> first (not inside another app), then tap ' +
+              '<b>Share</b> → <b>Add to Home Screen</b>.';
+        } else {
+          help.innerHTML = 'Tap the <b>⋮</b> menu in Chrome, then <b>Install app</b> ' +
+            '(or <b>Add to Home screen</b>). If you are inside another app, open the link in Chrome first.';
+        }
+        help.hidden = !help.hidden;
+      });
+    })();
+  </script>
+
+</body></html>

@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <title>Door Tech Sandbox</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #14171b; --panel: #1b1f24; --card: #22272e; --line: #2f353d;
+      --text: #e9ecef; --muted: #9aa3ac; --amber: #f5b301; --good: #4cd17a; --bad: #ff7a6b;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text); font: 14px/1.4 Barlow, system-ui, sans-serif; }
+    #app { display: flex; height: 100%; }
+    #view-wrap { position: relative; flex: 1; min-width: 0; }
+    #view { display: block; width: 100%; height: 100%; touch-action: none; }
+    #hud { position: absolute; left: 12px; top: 12px; right: 12px; display: flex; gap: 8px; flex-wrap: wrap; pointer-events: none; }
+    #hud > * { pointer-events: auto; }
+    .tag { background: rgba(20,23,27,0.85); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font-size: 13px; }
+    .tag b { color: var(--amber); font-weight: 600; }
+    #help { position: absolute; left: 12px; bottom: 12px; font-size: 12px; color: var(--muted); background: rgba(20,23,27,0.8); padding: 6px 10px; border-radius: 6px; }
+    #panel { width: 380px; flex: none; background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+    h1 { margin: 0; font: 700 26px/1 'Barlow Condensed', sans-serif; letter-spacing: 0.03em; }
+    h1 span { color: var(--amber); }
+    .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    .sec { background: var(--card); border-radius: 8px; padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+    .sec > .title { font-size: 11px; font-weight: 600; letter-spacing: 0.12em; color: var(--amber); }
+    label { font-size: 12px; color: var(--muted); }
+    select, button { font: inherit; color: var(--text); background: #2b313a; border: 1px solid #3a414b; border-radius: 6px; padding: 9px 10px; min-height: 40px; }
+    select { width: 100%; }
+    button { cursor: pointer; }
+    button:hover { border-color: var(--amber); }
+    button.primary { background: var(--amber); color: #14171b; border-color: var(--amber); font-weight: 600; }
+    button.on { border-color: var(--amber); color: var(--amber); }
+    button:disabled { opacity: 0.5; cursor: default; }
+    .row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .row > button { flex: 1 1 auto; }
+    .parts { display: flex; flex-direction: column; gap: 4px; }
+    .parts button { text-align: left; display: flex; justify-content: space-between; align-items: center; }
+    .parts button small { color: var(--muted); font-size: 11px; }
+    .parts button.sel { border-color: var(--amber); }
+    .parts button .culprit { color: var(--bad); font-size: 11px; font-weight: 600; }
+    ul.notes { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
+    ul.notes li.reading { color: #9fd3ff; }
+    ol.steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 3px; }
+    .muted { color: var(--muted); font-size: 13px; }
+    .cause { font-size: 13px; }
+    .cause b { color: var(--bad); }
+    q { font-style: italic; }
+    ul.checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+    ul.checks li { display: flex; justify-content: space-between; }
+    ul.checks li.good b { color: var(--good); }
+    ul.checks li.bad b { color: var(--bad); }
+    .verdict.good { color: var(--good); font-weight: 600; }
+    .verdict.bad { color: var(--bad); font-weight: 600; }
+    ul.warn { margin: 0; padding-left: 18px; color: #ffc46b; font-size: 13px; }
+    .ok { color: var(--good); font-size: 13px; }
+    a { color: var(--amber); }
+    @media (max-width: 760px) {
+      #app { flex-direction: column; }
+      #view-wrap { flex: none; height: 52vh; }
+      #panel { width: auto; border-left: none; border-top: 1px solid var(--line); flex: 1; }
+    }
+  </style>
+  <script type="importmap">{ "imports": { "three": "./vendor-three.module.js" } }</script>
+</head>
+<body>
+  <div id="app">
+    <div id="view-wrap">
+      <canvas id="view"></canvas>
+      <div id="hud">
+        <div class="tag" id="hud-state">Door: <b>…</b></div>
+        <div class="tag" id="hud-fault">Fault: <b>none</b></div>
+      </div>
+      <div id="help">Drag to look around · scroll or pinch to zoom · right-drag or two fingers to pan · tap a part to select it · tap the door to run it</div>
+    </div>
+    <aside id="panel">
+      <div>
+        <h1>DOOR TECH <span>SANDBOX</span></h1>
+        <div class="sub">Try a building and break its doors without going through the job board. Nothing here touches your saved game. <a href="index.html">Back to the game</a></div>
+      </div>
+
+      <div class="sec">
+        <div class="title">BUILDING</div>
+        <select id="building" aria-label="Building"></select>
+        <div class="muted" id="building-info"></div>
+      </div>
+
+      <div class="sec">
+        <div class="title">BREAK SOMETHING</div>
+        <select id="fault" aria-label="Fault"></select>
+        <div class="cause" id="fault-info"></div>
+      </div>
+
+      <div class="sec">
+        <div class="title">RUN THE DOOR</div>
+        <div class="row">
+          <button type="button" id="tap">Tap the door</button>
+          <button type="button" id="fast">⏩ 3x speed</button>
+        </div>
+        <button type="button" class="primary" id="test">Run the door test</button>
+        <div id="test-out"></div>
+      </div>
+
+      <div class="sec">
+        <div class="title">CAMERA</div>
+        <div class="row">
+          <button type="button" id="cam-out">Outside</button>
+          <button type="button" id="cam-in">Inside</button>
+          <button type="button" id="boxes">Show tap boxes</button>
+        </div>
+      </div>
+
+      <div class="sec">
+        <div class="title">PARTS</div>
+        <div class="parts" id="parts"></div>
+        <div id="part-detail"></div>
+      </div>
+
+      <div class="sec">
+        <div class="title">BUILDING CHECKLIST</div>
+        <div id="checklist"></div>
+      </div>
+    </aside>
+  </div>
+  <script type="module" src="src-sandbox.js"></script>
+</body>
+</html>
